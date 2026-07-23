@@ -1,0 +1,50 @@
+package com.swedbank.swedbankhometask.account.controllers;
+
+import com.swedbank.swedbankhometask.account.AccountService;
+import com.swedbank.swedbankhometask.account.dtos.AccountDto;
+import com.swedbank.swedbankhometask.account.dtos.CreateAccountRequest;
+import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
+import com.swedbank.swedbankhometask.account.mappers.AccountMapper;
+import com.swedbank.swedbankhometask.common.dtos.GenericResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
+
+/**
+ * REST controller for account operations.
+ *
+ * @author vinodjohn
+ * @since 23.07.2026
+ */
+@Slf4j
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/accounts")
+public class AccountController {
+    private final AccountService accountService;
+    private final AccountMapper accountMapper;
+
+    @PostMapping
+    public ResponseEntity<GenericResponse<AccountDto>> createAccount(@Valid @RequestBody CreateAccountRequest request) {
+        AccountDto account = accountMapper.toDto(accountService.createAccount(request.owner()));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new GenericResponse<>(true, "Account created successfully", account));
+    }
+
+    @GetMapping("/{id}/balance")
+    public ResponseEntity<GenericResponse<AccountDto>> getBalance(@PathVariable UUID id)
+            throws AccountNotFoundException {
+        AccountDto account = accountMapper.toDto(accountService.findAccountById(id));
+        return ResponseEntity.ok(new GenericResponse<>(true, "Balance fetched successfully", account));
+    }
+}
