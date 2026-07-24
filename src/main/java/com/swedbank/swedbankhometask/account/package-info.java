@@ -4,7 +4,7 @@
  * @author vinodjohn
  * @since 23.07.2026
  */
-@ApplicationModule(allowedDependencies = {"common"})
+@ApplicationModule(allowedDependencies = {"common", "integration :: api"})
 package com.swedbank.swedbankhometask.account;
 
 import org.springframework.modulith.ApplicationModule;

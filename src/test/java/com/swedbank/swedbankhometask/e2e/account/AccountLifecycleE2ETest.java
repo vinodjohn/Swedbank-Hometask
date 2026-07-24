@@ -1,5 +1,7 @@
 package com.swedbank.swedbankhometask.e2e.account;
 
+import com.swedbank.swedbankhometask.integration.api.ExternalLoggingService;
+import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 import tools.jackson.databind.JsonNode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,12 +11,15 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -23,6 +28,9 @@ class AccountLifecycleE2ETest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @MockitoBean
+    private ExternalLoggingService externalLoggingService;
 
     @Test
     @DisplayName("opens an account and reads back four zero balances")
@@ -64,6 +72,49 @@ class AccountLifecycleE2ETest {
     }
 
     @Test
+    @DisplayName("debits an account after the external logging call succeeds")
+    void debitsAccount() {
+        String id = openAccount("Dave");
+        restTemplate.postForEntity("/accounts/{id}/credit",
+                Map.of("currency", "EUR", "amount", "100.00"), JsonNode.class, id);
+
+        ResponseEntity<JsonNode> debited = restTemplate.postForEntity(
+                "/accounts/{id}/debit", Map.of("currency", "EUR", "amount", "40.00"), JsonNode.class, id);
+
+        assertThat(debited.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(eurAmount(debited.getBody())).isEqualByComparingTo("60.00");
+    }
+
+    @Test
+    @DisplayName("returns 409 when debiting more than the available balance")
+    void rejectsDebitOnInsufficientFunds() {
+        String id = openAccount("Erin");
+
+        ResponseEntity<JsonNode> response = restTemplate.postForEntity(
+                "/accounts/{id}/debit", Map.of("currency", "EUR", "amount", "10.00"), JsonNode.class, id);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().path("success").asBoolean()).isFalse();
+    }
+
+    @Test
+    @DisplayName("returns 502 and does not debit when external logging fails")
+    void abortsDebitWhenExternalLoggingFails() throws ExternalLoggingException {
+        String id = openAccount("Frank");
+        restTemplate.postForEntity("/accounts/{id}/credit",
+                Map.of("currency", "EUR", "amount", "100.00"), JsonNode.class, id);
+        doThrow(new ExternalLoggingException("boom", new RuntimeException()))
+                .when(externalLoggingService).log(anyString());
+
+        ResponseEntity<JsonNode> response = restTemplate.postForEntity(
+                "/accounts/{id}/debit", Map.of("currency", "EUR", "amount", "40.00"), JsonNode.class, id);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        ResponseEntity<JsonNode> balance = restTemplate.getForEntity("/accounts/{id}/balance", JsonNode.class, id);
+        assertThat(eurAmount(balance.getBody())).isEqualByComparingTo("100.00");
+    }
+
+    @Test
     @DisplayName("returns 404 when reading the balance of an unknown account")
     void returnsNotFoundForUnknownAccount() {
         ResponseEntity<JsonNode> response = restTemplate.getForEntity(
@@ -71,6 +122,11 @@ class AccountLifecycleE2ETest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody().path("success").asBoolean()).isFalse();
+    }
+
+    private String openAccount(String owner) {
+        return restTemplate.postForEntity("/accounts", Map.of("owner", owner), JsonNode.class)
+                .getBody().path("data").path("id").asText();
     }
 
     private BigDecimal eurAmount(JsonNode body) {

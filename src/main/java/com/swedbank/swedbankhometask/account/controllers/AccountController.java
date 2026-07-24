@@ -4,9 +4,12 @@ import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.dtos.AccountDto;
 import com.swedbank.swedbankhometask.account.dtos.CreateAccountRequest;
 import com.swedbank.swedbankhometask.account.dtos.CreditRequest;
+import com.swedbank.swedbankhometask.account.dtos.DebitRequest;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
+import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
 import com.swedbank.swedbankhometask.account.mappers.AccountMapper;
 import com.swedbank.swedbankhometask.common.dtos.GenericResponse;
+import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,5 +58,13 @@ public class AccountController {
             throws AccountNotFoundException {
         AccountDto account = accountMapper.toDto(accountService.credit(id, request.currency(), request.amount()));
         return ResponseEntity.ok(new GenericResponse<>(true, "Account credited successfully", account));
+    }
+
+    @PostMapping("/{id}/debit")
+    public ResponseEntity<GenericResponse<AccountDto>> debit(@PathVariable UUID id,
+                                                             @Valid @RequestBody DebitRequest request)
+            throws AccountNotFoundException, InsufficientFundsException, ExternalLoggingException {
+        AccountDto account = accountMapper.toDto(accountService.debit(id, request.currency(), request.amount()));
+        return ResponseEntity.ok(new GenericResponse<>(true, "Account debited successfully", account));
     }
 }

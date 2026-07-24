@@ -4,12 +4,14 @@ import tools.jackson.databind.ObjectMapper;
 import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.controllers.AccountController;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
+import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
 import com.swedbank.swedbankhometask.account.handlers.AccountExceptionHandler;
 import com.swedbank.swedbankhometask.account.mappers.AccountMapperImpl;
 import com.swedbank.swedbankhometask.account.models.Account;
 import com.swedbank.swedbankhometask.account.models.AccountBalance;
 import com.swedbank.swedbankhometask.account.models.Currency;
 import com.swedbank.swedbankhometask.common.handlers.GlobalExceptionHandler;
+import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -115,6 +117,48 @@ class AccountControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "-1.00"))))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/debit subtracts money and returns 200")
+    void debitReturnsOk() throws Exception {
+        Account account = account("Bob");
+        UUID id = account.getId();
+        when(accountService.debit(eq(id), eq(Currency.EUR), any(BigDecimal.class))).thenReturn(account);
+
+        mockMvc.perform(post("/accounts/{id}/debit", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "20.00"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/debit returns 409 on insufficient funds")
+    void debitReturnsConflictOnInsufficientFunds() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(accountService.debit(eq(id), eq(Currency.EUR), any(BigDecimal.class)))
+                .thenThrow(new InsufficientFundsException(id, Currency.EUR));
+
+        mockMvc.perform(post("/accounts/{id}/debit", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "20.00"))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/debit returns 502 when external logging fails")
+    void debitReturnsBadGatewayOnExternalFailure() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(accountService.debit(eq(id), eq(Currency.EUR), any(BigDecimal.class)))
+                .thenThrow(new ExternalLoggingException("boom", new RuntimeException()));
+
+        mockMvc.perform(post("/accounts/{id}/debit", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "20.00"))))
+                .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.success").value(false));
     }
 

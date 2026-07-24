@@ -1,11 +1,14 @@
 package com.swedbank.swedbankhometask.unit.account;
 
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
+import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
 import com.swedbank.swedbankhometask.account.implementations.AccountServiceImpl;
 import com.swedbank.swedbankhometask.account.models.Account;
 import com.swedbank.swedbankhometask.account.models.AccountBalance;
 import com.swedbank.swedbankhometask.account.models.Currency;
 import com.swedbank.swedbankhometask.account.repositories.AccountRepository;
+import com.swedbank.swedbankhometask.integration.api.ExternalLoggingService;
+import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,7 +23,11 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,6 +38,9 @@ class AccountServiceImplTest {
 
     @Mock
     private AccountRepository accountRepository;
+
+    @Mock
+    private ExternalLoggingService externalLoggingService;
 
     @Test
     @DisplayName("createAccount initialises a zero balance for every currency and persists it")
@@ -96,6 +106,62 @@ class AccountServiceImplTest {
 
         assertThatThrownBy(() -> accountService.credit(id, Currency.EUR, BigDecimal.ONE))
                 .isInstanceOf(AccountNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("debit logs externally then subtracts the amount when funds are sufficient")
+    void debitSubtractsWhenSufficient() throws Exception {
+        UUID id = UUID.randomUUID();
+        Account account = accountWithBalance(id, Currency.EUR, "100.0000");
+        when(accountRepository.findById(id)).thenReturn(Optional.of(account));
+        when(accountRepository.saveAndFlush(account)).thenReturn(account);
+
+        Account result = accountService.debit(id, Currency.EUR, new BigDecimal("30.00"));
+
+        assertThat(result.balanceOf(Currency.EUR)).isPresent()
+                .get()
+                .extracting(AccountBalance::getAmount)
+                .isEqualTo(new BigDecimal("70.0000"));
+        verify(externalLoggingService).log(anyString());
+        verify(accountRepository).saveAndFlush(account);
+    }
+
+    @Test
+    @DisplayName("debit throws on insufficient funds and does not persist")
+    void debitThrowsOnInsufficientFunds() throws Exception {
+        UUID id = UUID.randomUUID();
+        Account account = accountWithBalance(id, Currency.EUR, "10.0000");
+        when(accountRepository.findById(id)).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> accountService.debit(id, Currency.EUR, new BigDecimal("50.00")))
+                .isInstanceOf(InsufficientFundsException.class);
+        verify(externalLoggingService).log(anyString());
+        verify(accountRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("debit aborts without persisting when external logging fails")
+    void debitAbortsWhenExternalLoggingFails() throws Exception {
+        UUID id = UUID.randomUUID();
+        Account account = accountWithBalance(id, Currency.EUR, "100.0000");
+        when(accountRepository.findById(id)).thenReturn(Optional.of(account));
+        doThrow(new ExternalLoggingException("boom", new RuntimeException()))
+                .when(externalLoggingService).log(anyString());
+
+        assertThatThrownBy(() -> accountService.debit(id, Currency.EUR, new BigDecimal("10.00")))
+                .isInstanceOf(ExternalLoggingException.class);
+        verify(accountRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("debit throws when the account is missing without calling external logging")
+    void debitThrowsWhenAccountMissing() {
+        UUID id = UUID.randomUUID();
+        when(accountRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> accountService.debit(id, Currency.EUR, BigDecimal.ONE))
+                .isInstanceOf(AccountNotFoundException.class);
+        verifyNoInteractions(externalLoggingService);
     }
 
     private Account accountWithBalance(UUID id, Currency currency, String amount) {

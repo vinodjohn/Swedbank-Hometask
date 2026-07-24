@@ -1,8 +1,10 @@
 package com.swedbank.swedbankhometask.account;
 
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
+import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
 import com.swedbank.swedbankhometask.account.models.Account;
 import com.swedbank.swedbankhometask.account.models.Currency;
+import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -42,4 +44,19 @@ public interface AccountService {
      * @throws AccountNotFoundException if no account exists with the given identifier
      */
     Account credit(UUID id, Currency currency, BigDecimal amount) throws AccountNotFoundException;
+
+    /**
+     * Debits money from a single currency balance of an account. The external logging system is
+     * called before the balance is changed; if that call fails, nothing is debited.
+     *
+     * @param id       the account identifier
+     * @param currency the currency to debit
+     * @param amount   the positive amount to subtract
+     * @return the updated account
+     * @throws AccountNotFoundException   if no account exists with the given identifier
+     * @throws InsufficientFundsException if the balance is too low to cover the amount
+     * @throws ExternalLoggingException   if the external logging call fails
+     */
+    Account debit(UUID id, Currency currency, BigDecimal amount)
+            throws AccountNotFoundException, InsufficientFundsException, ExternalLoggingException;
 }

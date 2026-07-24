@@ -2,10 +2,13 @@ package com.swedbank.swedbankhometask.account.implementations;
 
 import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
+import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
 import com.swedbank.swedbankhometask.account.models.Account;
 import com.swedbank.swedbankhometask.account.models.AccountBalance;
 import com.swedbank.swedbankhometask.account.models.Currency;
 import com.swedbank.swedbankhometask.account.repositories.AccountRepository;
+import com.swedbank.swedbankhometask.integration.api.ExternalLoggingService;
+import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.text.MessageFormat;
 import java.util.UUID;
 
 /**
@@ -30,6 +34,7 @@ public class AccountServiceImpl implements AccountService {
     private static final BigDecimal ZERO_BALANCE = BigDecimal.ZERO.setScale(SCALE, RoundingMode.UNNECESSARY);
 
     private final AccountRepository accountRepository;
+    private final ExternalLoggingService externalLoggingService;
 
     @Override
     public Account createAccount(String owner) {
@@ -58,6 +63,22 @@ public class AccountServiceImpl implements AccountService {
         balance.setAmount(balance.getAmount().add(amount).setScale(SCALE, RoundingMode.HALF_UP));
 
         log.info("Crediting {} {} to account: {}", amount, currency, id);
+        return accountRepository.saveAndFlush(account);
+    }
+
+    @Override
+    public Account debit(UUID id, Currency currency, BigDecimal amount)
+            throws AccountNotFoundException, InsufficientFundsException, ExternalLoggingException {
+        Account account = findAccountById(id);
+        externalLoggingService.log(MessageFormat.format("Debit {0} {1} from account {2}", amount, currency, id));
+
+        AccountBalance balance = balanceFor(account, currency);
+        if (balance.getAmount().compareTo(amount) < 0) {
+            throw new InsufficientFundsException(id, currency);
+        }
+        balance.setAmount(balance.getAmount().subtract(amount).setScale(SCALE, RoundingMode.HALF_UP));
+
+        log.info("Debiting {} {} from account: {}", amount, currency, id);
         return accountRepository.saveAndFlush(account);
     }
 
