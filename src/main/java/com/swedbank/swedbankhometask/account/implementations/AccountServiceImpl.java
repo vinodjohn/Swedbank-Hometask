@@ -26,7 +26,8 @@ import java.util.UUID;
 @Transactional
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
-    private static final BigDecimal ZERO_BALANCE = BigDecimal.ZERO.setScale(4, RoundingMode.UNNECESSARY);
+    private static final int SCALE = 4;
+    private static final BigDecimal ZERO_BALANCE = BigDecimal.ZERO.setScale(SCALE, RoundingMode.UNNECESSARY);
 
     private final AccountRepository accountRepository;
 
@@ -50,6 +51,16 @@ public class AccountServiceImpl implements AccountService {
                 .orElseThrow(() -> new AccountNotFoundException(id));
     }
 
+    @Override
+    public Account credit(UUID id, Currency currency, BigDecimal amount) throws AccountNotFoundException {
+        Account account = findAccountById(id);
+        AccountBalance balance = balanceFor(account, currency);
+        balance.setAmount(balance.getAmount().add(amount).setScale(SCALE, RoundingMode.HALF_UP));
+
+        log.info("Crediting {} {} to account: {}", amount, currency, id);
+        return accountRepository.saveAndFlush(account);
+    }
+
     // PRIVATE METHODS //
 
     private AccountBalance newBalance(Account account, Currency currency) {
@@ -58,5 +69,13 @@ public class AccountServiceImpl implements AccountService {
         balance.setCurrency(currency);
         balance.setAmount(ZERO_BALANCE);
         return balance;
+    }
+
+    private AccountBalance balanceFor(Account account, Currency currency) {
+        return account.balanceOf(currency).orElseGet(() -> {
+            AccountBalance balance = newBalance(account, currency);
+            account.getBalances().add(balance);
+            return balance;
+        });
     }
 }

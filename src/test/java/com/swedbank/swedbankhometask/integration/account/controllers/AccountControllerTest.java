@@ -1,5 +1,6 @@
 package com.swedbank.swedbankhometask.integration.account.controllers;
 
+import tools.jackson.databind.ObjectMapper;
 import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.controllers.AccountController;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
@@ -17,12 +18,13 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -89,6 +91,30 @@ class AccountControllerTest {
 
         mockMvc.perform(get("/accounts/{id}/balance", id))
                 .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/credit adds money and returns 200")
+    void creditReturnsOk() throws Exception {
+        Account account = account("Bob");
+        UUID id = account.getId();
+        when(accountService.credit(eq(id), eq(Currency.EUR), any(BigDecimal.class))).thenReturn(account);
+
+        mockMvc.perform(post("/accounts/{id}/credit", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "50.00"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/credit rejects a non-positive amount with 400")
+    void creditRejectsNonPositiveAmount() throws Exception {
+        mockMvc.perform(post("/accounts/{id}/credit", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "-1.00"))))
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
 

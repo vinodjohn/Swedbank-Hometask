@@ -70,4 +70,42 @@ class AccountServiceImplTest {
                 .isInstanceOf(AccountNotFoundException.class)
                 .hasMessageContaining(id.toString());
     }
+
+    @Test
+    @DisplayName("credit adds the amount to the matching currency balance")
+    void creditAddsAmountToCurrencyBalance() throws AccountNotFoundException {
+        UUID id = UUID.randomUUID();
+        Account account = accountWithBalance(id, Currency.EUR, "10.0000");
+        when(accountRepository.findById(id)).thenReturn(Optional.of(account));
+        when(accountRepository.saveAndFlush(account)).thenReturn(account);
+
+        Account result = accountService.credit(id, Currency.EUR, new BigDecimal("5.50"));
+
+        assertThat(result.balanceOf(Currency.EUR)).isPresent()
+                .get()
+                .extracting(AccountBalance::getAmount)
+                .isEqualTo(new BigDecimal("15.5000"));
+        verify(accountRepository).saveAndFlush(account);
+    }
+
+    @Test
+    @DisplayName("credit throws when the account is missing")
+    void creditThrowsWhenAccountMissing() {
+        UUID id = UUID.randomUUID();
+        when(accountRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> accountService.credit(id, Currency.EUR, BigDecimal.ONE))
+                .isInstanceOf(AccountNotFoundException.class);
+    }
+
+    private Account accountWithBalance(UUID id, Currency currency, String amount) {
+        Account account = new Account();
+        account.setId(id);
+        AccountBalance balance = new AccountBalance();
+        balance.setAccount(account);
+        balance.setCurrency(currency);
+        balance.setAmount(new BigDecimal(amount));
+        account.getBalances().add(balance);
+        return account;
+    }
 }

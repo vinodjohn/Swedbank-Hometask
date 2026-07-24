@@ -3,6 +3,7 @@ package com.swedbank.swedbankhometask.account.controllers;
 import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.dtos.AccountDto;
 import com.swedbank.swedbankhometask.account.dtos.CreateAccountRequest;
+import com.swedbank.swedbankhometask.account.dtos.CreditRequest;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
 import com.swedbank.swedbankhometask.account.mappers.AccountMapper;
 import com.swedbank.swedbankhometask.common.dtos.GenericResponse;
@@ -46,5 +47,13 @@ public class AccountController {
             throws AccountNotFoundException {
         AccountDto account = accountMapper.toDto(accountService.findAccountById(id));
         return ResponseEntity.ok(new GenericResponse<>(true, "Balance fetched successfully", account));
+    }
+
+    @PostMapping("/{id}/credit")
+    public ResponseEntity<GenericResponse<AccountDto>> credit(@PathVariable UUID id,
+                                                              @Valid @RequestBody CreditRequest request)
+            throws AccountNotFoundException {
+        AccountDto account = accountMapper.toDto(accountService.credit(id, request.currency(), request.amount()));
+        return ResponseEntity.ok(new GenericResponse<>(true, "Account credited successfully", account));
     }
 }
