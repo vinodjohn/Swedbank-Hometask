@@ -12,6 +12,8 @@ import com.swedbank.swedbankhometask.account.exceptions.InvalidExchangeException
 import com.swedbank.swedbankhometask.account.mappers.AccountMapper;
 import com.swedbank.swedbankhometask.common.dtos.GenericResponse;
 import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,11 +38,13 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/accounts")
+@Tag(name = "Accounts", description = "Open accounts and move money across their currency balances")
 public class AccountController {
     private final AccountService accountService;
     private final AccountMapper accountMapper;
 
     @PostMapping
+    @Operation(summary = "Open a new account with a zero balance in every currency")
     public ResponseEntity<GenericResponse<AccountDto>> createAccount(@Valid @RequestBody CreateAccountRequest request) {
         AccountDto account = accountMapper.toDto(accountService.createAccount(request.owner()));
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -48,6 +52,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/balance")
+    @Operation(summary = "Read every currency balance of an account")
     public ResponseEntity<GenericResponse<AccountDto>> getBalance(@PathVariable UUID id)
             throws AccountNotFoundException {
         AccountDto account = accountMapper.toDto(accountService.findAccountById(id));
@@ -55,6 +60,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/credit")
+    @Operation(summary = "Add money to a single currency balance")
     public ResponseEntity<GenericResponse<AccountDto>> credit(@PathVariable UUID id,
                                                               @Valid @RequestBody CreditRequest request)
             throws AccountNotFoundException {
@@ -63,6 +69,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/debit")
+    @Operation(summary = "Take money from a single currency balance after the external logging call")
     public ResponseEntity<GenericResponse<AccountDto>> debit(@PathVariable UUID id,
                                                              @Valid @RequestBody DebitRequest request)
             throws AccountNotFoundException, InsufficientFundsException, ExternalLoggingException {
@@ -71,6 +78,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/exchange")
+    @Operation(summary = "Convert value between two currency balances of the same account")
     public ResponseEntity<GenericResponse<AccountDto>> exchange(@PathVariable UUID id,
                                                                 @Valid @RequestBody ExchangeRequest request)
             throws AccountNotFoundException, InsufficientFundsException, InvalidExchangeException {

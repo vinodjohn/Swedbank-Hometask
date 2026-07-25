@@ -21,7 +21,8 @@ there is nothing to install or start up first.
 
 The service comes up on `http://localhost:8080`. The H2 console sits at
 `http://localhost:8080/h2-console` if you want to poke at the data (JDBC URL `jdbc:h2:mem:swedbank`,
-user `sa`, empty password).
+user `sa`, empty password). Swagger UI is at `http://localhost:8080/swagger-ui.html` and the raw
+OpenAPI document at `http://localhost:8080/v3/api-docs`.
 
 To compile everything and run the tests:
 
