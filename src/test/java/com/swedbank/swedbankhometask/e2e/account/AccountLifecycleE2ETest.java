@@ -115,6 +115,35 @@ class AccountLifecycleE2ETest {
     }
 
     @Test
+    @DisplayName("exchanges EUR into USD at the configured rate")
+    void exchangesBetweenCurrencies() {
+        String id = openAccount("Grace");
+        restTemplate.postForEntity("/accounts/{id}/credit",
+                Map.of("currency", "EUR", "amount", "100.00"), JsonNode.class, id);
+
+        ResponseEntity<JsonNode> exchanged = restTemplate.postForEntity("/accounts/{id}/exchange",
+                Map.of("fromCurrency", "EUR", "toCurrency", "USD", "amount", "40.00"), JsonNode.class, id);
+
+        assertThat(exchanged.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(amountOf(exchanged.getBody(), "EUR")).isEqualByComparingTo("60.00");
+        assertThat(amountOf(exchanged.getBody(), "USD")).isEqualByComparingTo("43.60");
+    }
+
+    @Test
+    @DisplayName("returns 400 when exchanging a currency into itself")
+    void rejectsExchangeIntoSameCurrency() {
+        String id = openAccount("Heidi");
+        restTemplate.postForEntity("/accounts/{id}/credit",
+                Map.of("currency", "EUR", "amount", "100.00"), JsonNode.class, id);
+
+        ResponseEntity<JsonNode> response = restTemplate.postForEntity("/accounts/{id}/exchange",
+                Map.of("fromCurrency", "EUR", "toCurrency", "EUR", "amount", "10.00"), JsonNode.class, id);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().path("success").asBoolean()).isFalse();
+    }
+
+    @Test
     @DisplayName("returns 404 when reading the balance of an unknown account")
     void returnsNotFoundForUnknownAccount() {
         ResponseEntity<JsonNode> response = restTemplate.getForEntity(
@@ -130,11 +159,15 @@ class AccountLifecycleE2ETest {
     }
 
     private BigDecimal eurAmount(JsonNode body) {
+        return amountOf(body, "EUR");
+    }
+
+    private BigDecimal amountOf(JsonNode body, String currency) {
         for (JsonNode balance : body.path("data").path("balances")) {
-            if ("EUR".equals(balance.path("currency").asText())) {
+            if (currency.equals(balance.path("currency").asText())) {
                 return new BigDecimal(balance.path("amount").asText());
             }
         }
-        throw new AssertionError("EUR balance not found");
+        throw new AssertionError(currency + " balance not found");
     }
 }

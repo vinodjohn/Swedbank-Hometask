@@ -3,6 +3,7 @@ package com.swedbank.swedbankhometask.account.implementations;
 import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
 import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
+import com.swedbank.swedbankhometask.account.exceptions.InvalidExchangeException;
 import com.swedbank.swedbankhometask.account.models.Account;
 import com.swedbank.swedbankhometask.account.models.AccountBalance;
 import com.swedbank.swedbankhometask.account.models.Currency;
@@ -35,6 +36,7 @@ public class AccountServiceImpl implements AccountService {
 
     private final AccountRepository accountRepository;
     private final ExternalLoggingService externalLoggingService;
+    private final ExchangeRateProvider exchangeRateProvider;
 
     @Override
     public Account createAccount(String owner) {
@@ -79,6 +81,28 @@ public class AccountServiceImpl implements AccountService {
         balance.setAmount(balance.getAmount().subtract(amount).setScale(SCALE, RoundingMode.HALF_UP));
 
         log.info("Debiting {} {} from account: {}", amount, currency, id);
+        return accountRepository.saveAndFlush(account);
+    }
+
+    @Override
+    public Account exchange(UUID id, Currency from, Currency to, BigDecimal amount)
+            throws AccountNotFoundException, InsufficientFundsException, InvalidExchangeException {
+        if (from == to) {
+            throw new InvalidExchangeException(from);
+        }
+
+        Account account = findAccountById(id);
+        AccountBalance source = balanceFor(account, from);
+        if (source.getAmount().compareTo(amount) < 0) {
+            throw new InsufficientFundsException(id, from);
+        }
+
+        BigDecimal converted = exchangeRateProvider.convert(from, to, amount);
+        AccountBalance target = balanceFor(account, to);
+        source.setAmount(source.getAmount().subtract(amount).setScale(SCALE, RoundingMode.HALF_UP));
+        target.setAmount(target.getAmount().add(converted).setScale(SCALE, RoundingMode.HALF_UP));
+
+        log.info("Exchanging {} {} to {} {} on account: {}", amount, from, converted, to, id);
         return accountRepository.saveAndFlush(account);
     }
 

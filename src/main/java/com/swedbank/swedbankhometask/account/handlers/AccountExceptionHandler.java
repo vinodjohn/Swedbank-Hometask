@@ -2,6 +2,7 @@ package com.swedbank.swedbankhometask.account.handlers;
 
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
 import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
+import com.swedbank.swedbankhometask.account.exceptions.InvalidExchangeException;
 import com.swedbank.swedbankhometask.common.dtos.GenericResponse;
 import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,12 @@ public class AccountExceptionHandler {
     @ExceptionHandler(InsufficientFundsException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public GenericResponse<Void> handleInsufficientFunds(InsufficientFundsException ex) {
+        return new GenericResponse<>(false, ex.getMessage(), null);
+    }
+
+    @ExceptionHandler(InvalidExchangeException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public GenericResponse<Void> handleInvalidExchange(InvalidExchangeException ex) {
         return new GenericResponse<>(false, ex.getMessage(), null);
     }
 

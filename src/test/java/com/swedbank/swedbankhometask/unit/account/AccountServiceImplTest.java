@@ -2,7 +2,9 @@ package com.swedbank.swedbankhometask.unit.account;
 
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
 import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
+import com.swedbank.swedbankhometask.account.exceptions.InvalidExchangeException;
 import com.swedbank.swedbankhometask.account.implementations.AccountServiceImpl;
+import com.swedbank.swedbankhometask.account.implementations.ExchangeRateProvider;
 import com.swedbank.swedbankhometask.account.models.Account;
 import com.swedbank.swedbankhometask.account.models.AccountBalance;
 import com.swedbank.swedbankhometask.account.models.Currency;
@@ -41,6 +43,9 @@ class AccountServiceImplTest {
 
     @Mock
     private ExternalLoggingService externalLoggingService;
+
+    @Mock
+    private ExchangeRateProvider exchangeRateProvider;
 
     @Test
     @DisplayName("createAccount initialises a zero balance for every currency and persists it")
@@ -164,14 +169,71 @@ class AccountServiceImplTest {
         verifyNoInteractions(externalLoggingService);
     }
 
+    @Test
+    @DisplayName("exchange moves the converted amount between the two balances")
+    void exchangeMovesConvertedAmount() throws Exception {
+        UUID id = UUID.randomUUID();
+        Account account = accountWithBalance(id, Currency.EUR, "100.0000");
+        account.getBalances().add(balance(account, Currency.USD, "0.0000"));
+        when(accountRepository.findById(id)).thenReturn(Optional.of(account));
+        when(accountRepository.saveAndFlush(account)).thenReturn(account);
+        when(exchangeRateProvider.convert(Currency.EUR, Currency.USD, new BigDecimal("40.00")))
+                .thenReturn(new BigDecimal("43.6000"));
+
+        Account result = accountService.exchange(id, Currency.EUR, Currency.USD, new BigDecimal("40.00"));
+
+        assertThat(result.balanceOf(Currency.EUR)).get()
+                .extracting(AccountBalance::getAmount).isEqualTo(new BigDecimal("60.0000"));
+        assertThat(result.balanceOf(Currency.USD)).get()
+                .extracting(AccountBalance::getAmount).isEqualTo(new BigDecimal("43.6000"));
+        verify(accountRepository).saveAndFlush(account);
+    }
+
+    @Test
+    @DisplayName("exchange rejects the same source and target currency")
+    void exchangeRejectsSameCurrency() {
+        UUID id = UUID.randomUUID();
+
+        assertThatThrownBy(() -> accountService.exchange(id, Currency.EUR, Currency.EUR, BigDecimal.TEN))
+                .isInstanceOf(InvalidExchangeException.class);
+        verifyNoInteractions(accountRepository, exchangeRateProvider);
+    }
+
+    @Test
+    @DisplayName("exchange throws on insufficient source funds and does not persist")
+    void exchangeThrowsOnInsufficientFunds() {
+        UUID id = UUID.randomUUID();
+        Account account = accountWithBalance(id, Currency.EUR, "10.0000");
+        when(accountRepository.findById(id)).thenReturn(Optional.of(account));
+
+        assertThatThrownBy(() -> accountService.exchange(id, Currency.EUR, Currency.USD, new BigDecimal("50.00")))
+                .isInstanceOf(InsufficientFundsException.class);
+        verify(accountRepository, never()).saveAndFlush(any());
+        verifyNoInteractions(exchangeRateProvider);
+    }
+
+    @Test
+    @DisplayName("exchange throws when the account is missing")
+    void exchangeThrowsWhenAccountMissing() {
+        UUID id = UUID.randomUUID();
+        when(accountRepository.findById(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> accountService.exchange(id, Currency.EUR, Currency.USD, BigDecimal.ONE))
+                .isInstanceOf(AccountNotFoundException.class);
+    }
+
     private Account accountWithBalance(UUID id, Currency currency, String amount) {
         Account account = new Account();
         account.setId(id);
+        account.getBalances().add(balance(account, currency, amount));
+        return account;
+    }
+
+    private AccountBalance balance(Account account, Currency currency, String amount) {
         AccountBalance balance = new AccountBalance();
         balance.setAccount(account);
         balance.setCurrency(currency);
         balance.setAmount(new BigDecimal(amount));
-        account.getBalances().add(balance);
-        return account;
+        return balance;
     }
 }

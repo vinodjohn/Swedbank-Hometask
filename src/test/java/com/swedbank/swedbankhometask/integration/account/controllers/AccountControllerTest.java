@@ -5,6 +5,7 @@ import com.swedbank.swedbankhometask.account.AccountService;
 import com.swedbank.swedbankhometask.account.controllers.AccountController;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
 import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
+import com.swedbank.swedbankhometask.account.exceptions.InvalidExchangeException;
 import com.swedbank.swedbankhometask.account.handlers.AccountExceptionHandler;
 import com.swedbank.swedbankhometask.account.mappers.AccountMapperImpl;
 import com.swedbank.swedbankhometask.account.models.Account;
@@ -159,6 +160,52 @@ class AccountControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("currency", "EUR", "amount", "20.00"))))
                 .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/exchange converts between currencies and returns 200")
+    void exchangeReturnsOk() throws Exception {
+        Account account = account("Bob");
+        UUID id = account.getId();
+        when(accountService.exchange(eq(id), eq(Currency.EUR), eq(Currency.USD), any(BigDecimal.class)))
+                .thenReturn(account);
+
+        mockMvc.perform(post("/accounts/{id}/exchange", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("fromCurrency", "EUR", "toCurrency", "USD", "amount", "40.00"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/exchange returns 400 when exchanging into the same currency")
+    void exchangeReturnsBadRequestForSameCurrency() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(accountService.exchange(eq(id), eq(Currency.EUR), eq(Currency.EUR), any(BigDecimal.class)))
+                .thenThrow(new InvalidExchangeException(Currency.EUR));
+
+        mockMvc.perform(post("/accounts/{id}/exchange", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("fromCurrency", "EUR", "toCurrency", "EUR", "amount", "40.00"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/exchange returns 409 on insufficient source funds")
+    void exchangeReturnsConflictOnInsufficientFunds() throws Exception {
+        UUID id = UUID.randomUUID();
+        when(accountService.exchange(eq(id), eq(Currency.EUR), eq(Currency.USD), any(BigDecimal.class)))
+                .thenThrow(new InsufficientFundsException(id, Currency.EUR));
+
+        mockMvc.perform(post("/accounts/{id}/exchange", id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                Map.of("fromCurrency", "EUR", "toCurrency", "USD", "amount", "40.00"))))
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false));
     }
 

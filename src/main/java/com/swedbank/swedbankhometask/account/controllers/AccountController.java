@@ -5,8 +5,10 @@ import com.swedbank.swedbankhometask.account.dtos.AccountDto;
 import com.swedbank.swedbankhometask.account.dtos.CreateAccountRequest;
 import com.swedbank.swedbankhometask.account.dtos.CreditRequest;
 import com.swedbank.swedbankhometask.account.dtos.DebitRequest;
+import com.swedbank.swedbankhometask.account.dtos.ExchangeRequest;
 import com.swedbank.swedbankhometask.account.exceptions.AccountNotFoundException;
 import com.swedbank.swedbankhometask.account.exceptions.InsufficientFundsException;
+import com.swedbank.swedbankhometask.account.exceptions.InvalidExchangeException;
 import com.swedbank.swedbankhometask.account.mappers.AccountMapper;
 import com.swedbank.swedbankhometask.common.dtos.GenericResponse;
 import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingException;
@@ -66,5 +68,14 @@ public class AccountController {
             throws AccountNotFoundException, InsufficientFundsException, ExternalLoggingException {
         AccountDto account = accountMapper.toDto(accountService.debit(id, request.currency(), request.amount()));
         return ResponseEntity.ok(new GenericResponse<>(true, "Account debited successfully", account));
+    }
+
+    @PostMapping("/{id}/exchange")
+    public ResponseEntity<GenericResponse<AccountDto>> exchange(@PathVariable UUID id,
+                                                                @Valid @RequestBody ExchangeRequest request)
+            throws AccountNotFoundException, InsufficientFundsException, InvalidExchangeException {
+        AccountDto account = accountMapper.toDto(
+                accountService.exchange(id, request.fromCurrency(), request.toCurrency(), request.amount()));
+        return ResponseEntity.ok(new GenericResponse<>(true, "Currency exchanged successfully", account));
     }
 }
