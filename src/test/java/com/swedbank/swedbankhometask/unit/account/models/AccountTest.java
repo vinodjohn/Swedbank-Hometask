@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AccountTest {
-
     @Test
     @DisplayName("balanceOf returns the balance matching the requested currency")
     void balanceOfReturnsMatchingCurrency() {
@@ -35,6 +34,7 @@ class AccountTest {
         assertThat(account.balanceOf(Currency.GBP)).isEmpty();
     }
 
+    // PRIVATE METHODS //
     private AccountBalance balance(Account account, Currency currency, String amount) {
         AccountBalance balance = new AccountBalance();
         balance.setAccount(account);

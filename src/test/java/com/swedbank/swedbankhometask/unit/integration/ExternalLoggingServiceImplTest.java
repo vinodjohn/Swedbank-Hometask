@@ -16,7 +16,6 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class ExternalLoggingServiceImplTest {
-
     private static final String BASE_URL = "http://external-logging";
 
     private MockRestServiceServer server;

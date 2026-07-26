@@ -34,7 +34,6 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AccountServiceImplTest {
-
     @InjectMocks
     private AccountServiceImpl accountService;
 
@@ -222,6 +221,7 @@ class AccountServiceImplTest {
                 .isInstanceOf(AccountNotFoundException.class);
     }
 
+    // PRIVATE METHODS //
     private Account accountWithBalance(UUID id, Currency currency, String amount) {
         Account account = new Account();
         account.setId(id);

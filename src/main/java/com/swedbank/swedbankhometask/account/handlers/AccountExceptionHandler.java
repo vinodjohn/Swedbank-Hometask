@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @RestControllerAdvice(basePackages = "com.swedbank.swedbankhometask.account")
 public class AccountExceptionHandler {
-
     @ExceptionHandler(AccountNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public GenericResponse<Void> handleNotFound(AccountNotFoundException ex) {

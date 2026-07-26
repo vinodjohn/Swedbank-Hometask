@@ -11,7 +11,6 @@ import org.springframework.modulith.core.ApplicationModules;
  * @since 25.07.2026
  */
 class ModularityTest {
-
     private final ApplicationModules modules = ApplicationModules.of(SwedbankHometaskApplication.class);
 
     @Test

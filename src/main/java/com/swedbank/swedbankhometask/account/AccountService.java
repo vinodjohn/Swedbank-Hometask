@@ -17,7 +17,6 @@ import java.util.UUID;
  * @since 23.07.2026
  */
 public interface AccountService {
-
     /**
      * Opens a new account with a zero balance in every supported currency.
      *

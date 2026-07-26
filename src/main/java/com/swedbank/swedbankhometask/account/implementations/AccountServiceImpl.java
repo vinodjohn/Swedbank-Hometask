@@ -107,7 +107,6 @@ public class AccountServiceImpl implements AccountService {
     }
 
     // PRIVATE METHODS //
-
     private AccountBalance newBalance(Account account, Currency currency) {
         AccountBalance balance = new AccountBalance();
         balance.setAccount(account);

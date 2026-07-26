@@ -15,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +26,6 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureTestRestTemplate
 class AccountLifecycleE2ETest {
-
     @Autowired
     private TestRestTemplate restTemplate;
 
@@ -42,24 +42,25 @@ class AccountLifecycleE2ETest {
         assertThat(created.getBody()).isNotNull();
         assertThat(created.getBody().path("success").asBoolean()).isTrue();
 
-        String id = created.getBody().path("data").path("id").asText();
+        String id = created.getBody().path("data").path("id").asString();
         assertThat(id).isNotBlank();
 
         ResponseEntity<JsonNode> balance = restTemplate.getForEntity(
                 "/accounts/{id}/balance", JsonNode.class, id);
 
         assertThat(balance.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assert balance.getBody() != null;
         JsonNode balances = balance.getBody().path("data").path("balances");
         assertThat(balances).hasSize(4);
         balances.forEach(node ->
-                assertThat(new BigDecimal(node.path("amount").asText())).isEqualByComparingTo(BigDecimal.ZERO));
+                assertThat(new BigDecimal(node.path("amount").asString())).isEqualByComparingTo(BigDecimal.ZERO));
     }
 
     @Test
     @DisplayName("credits an account and reflects the new balance")
     void creditsAccount() {
-        String id = restTemplate.postForEntity("/accounts", Map.of("owner", "Carol"), JsonNode.class)
-                .getBody().path("data").path("id").asText();
+        String id = Objects.requireNonNull(restTemplate.postForEntity("/accounts", Map.of("owner", "Carol"), JsonNode.class)
+                .getBody()).path("data").path("id").asString();
 
         ResponseEntity<JsonNode> credited = restTemplate.postForEntity(
                 "/accounts/{id}/credit", Map.of("currency", "EUR", "amount", "100.00"), JsonNode.class, id);
@@ -94,6 +95,7 @@ class AccountLifecycleE2ETest {
                 "/accounts/{id}/debit", Map.of("currency", "EUR", "amount", "10.00"), JsonNode.class, id);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assert response.getBody() != null;
         assertThat(response.getBody().path("success").asBoolean()).isFalse();
     }
 
@@ -125,6 +127,7 @@ class AccountLifecycleE2ETest {
                 Map.of("fromCurrency", "EUR", "toCurrency", "USD", "amount", "40.00"), JsonNode.class, id);
 
         assertThat(exchanged.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assert exchanged.getBody() != null;
         assertThat(amountOf(exchanged.getBody(), "EUR")).isEqualByComparingTo("60.00");
         assertThat(amountOf(exchanged.getBody(), "USD")).isEqualByComparingTo("43.60");
     }
@@ -140,6 +143,7 @@ class AccountLifecycleE2ETest {
                 Map.of("fromCurrency", "EUR", "toCurrency", "EUR", "amount", "10.00"), JsonNode.class, id);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assert response.getBody() != null;
         assertThat(response.getBody().path("success").asBoolean()).isFalse();
     }
 
@@ -150,12 +154,13 @@ class AccountLifecycleE2ETest {
                 "/accounts/{id}/balance", JsonNode.class, UUID.randomUUID());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assert response.getBody() != null;
         assertThat(response.getBody().path("success").asBoolean()).isFalse();
     }
 
     private String openAccount(String owner) {
-        return restTemplate.postForEntity("/accounts", Map.of("owner", owner), JsonNode.class)
-                .getBody().path("data").path("id").asText();
+        return Objects.requireNonNull(restTemplate.postForEntity("/accounts", Map.of("owner", owner), JsonNode.class)
+                .getBody()).path("data").path("id").asString();
     }
 
     private BigDecimal eurAmount(JsonNode body) {
@@ -164,8 +169,8 @@ class AccountLifecycleE2ETest {
 
     private BigDecimal amountOf(JsonNode body, String currency) {
         for (JsonNode balance : body.path("data").path("balances")) {
-            if (currency.equals(balance.path("currency").asText())) {
-                return new BigDecimal(balance.path("amount").asText());
+            if (currency.equals(balance.path("currency").asString())) {
+                return new BigDecimal(balance.path("amount").asString());
             }
         }
         throw new AssertionError(currency + " balance not found");

@@ -24,20 +24,11 @@ public class ExchangeRateProvider {
 
     private final ExchangeProperties properties;
 
-    /**
-     * Converts an amount from one currency to another at the fixed rates.
-     *
-     * @param from   the source currency
-     * @param to     the target currency
-     * @param amount the amount in the source currency
-     * @return the equivalent amount in the target currency, rounded to four decimals
-     */
     public BigDecimal convert(Currency from, Currency to, BigDecimal amount) {
         return amount.multiply(rateOf(to)).divide(rateOf(from), SCALE, RoundingMode.HALF_UP);
     }
 
     // PRIVATE METHODS //
-
     private BigDecimal rateOf(Currency currency) {
         BigDecimal rate = properties.rates().get(currency);
         if (rate == null) {

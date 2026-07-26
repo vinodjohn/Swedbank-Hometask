@@ -9,7 +9,6 @@ import com.swedbank.swedbankhometask.integration.api.exceptions.ExternalLoggingE
  * @since 24.07.2026
  */
 public interface ExternalLoggingService {
-
     /**
      * Records a message in the external logging system.
      *

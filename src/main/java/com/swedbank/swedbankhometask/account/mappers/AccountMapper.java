@@ -18,7 +18,6 @@ import java.util.Set;
  */
 @Mapper(componentModel = "spring")
 public interface AccountMapper {
-
     AccountDto toDto(Account account);
 
     BalanceDto toDto(AccountBalance balance);

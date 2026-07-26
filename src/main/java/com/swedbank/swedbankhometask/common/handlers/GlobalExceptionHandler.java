@@ -21,7 +21,6 @@ import java.util.Map;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public GenericResponse<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {

@@ -17,7 +17,6 @@ import java.time.Duration;
 @Configuration
 @EnableConfigurationProperties(ExternalLoggingProperties.class)
 public class ExternalLoggingConfiguration {
-
     @Bean
     public RestClient externalLoggingRestClient(ExternalLoggingProperties properties) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();

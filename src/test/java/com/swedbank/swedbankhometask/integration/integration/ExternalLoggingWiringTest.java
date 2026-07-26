@@ -12,7 +12,6 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 
 @SpringBootTest(webEnvironment = NONE)
 class ExternalLoggingWiringTest {
-
     @Autowired
     private ExternalLoggingService externalLoggingService;
 

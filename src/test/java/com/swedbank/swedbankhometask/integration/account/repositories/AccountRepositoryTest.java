@@ -19,7 +19,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @Import(JpaAuditingConfiguration.class)
 class AccountRepositoryTest {
-
     @Autowired
     private AccountRepository accountRepository;
 
@@ -58,6 +57,7 @@ class AccountRepositoryTest {
                 .isEqualTo(new BigDecimal("42.5000"));
     }
 
+    // PRIVATE METHODS //
     private AccountBalance balance(Account account, Currency currency, String amount) {
         AccountBalance balance = new AccountBalance();
         balance.setAccount(account);

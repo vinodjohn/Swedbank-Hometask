@@ -16,7 +16,6 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AccountMapperTest {
-
     private final AccountMapper accountMapper = new AccountMapperImpl();
 
     @Test
@@ -39,6 +38,7 @@ class AccountMapperTest {
                 .containsExactly(Currency.EUR, Currency.USD, Currency.GBP);
     }
 
+    // PRIVATE METHODS //
     private AccountBalance balance(Account account, Currency currency, String amount) {
         AccountBalance balance = new AccountBalance();
         balance.setAccount(account);

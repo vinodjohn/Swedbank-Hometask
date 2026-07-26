@@ -14,7 +14,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ExchangeRateProviderTest {
-
     private final ExchangeRateProvider provider = new ExchangeRateProvider(new ExchangeProperties(rates()));
 
     @Test
@@ -52,6 +51,7 @@ class ExchangeRateProviderTest {
                 .isInstanceOf(IllegalStateException.class);
     }
 
+    // PRIVATE METHODS //
     private Map<Currency, BigDecimal> rates() {
         Map<Currency, BigDecimal> rates = new EnumMap<>(Currency.class);
         rates.put(Currency.EUR, new BigDecimal("1.0"));

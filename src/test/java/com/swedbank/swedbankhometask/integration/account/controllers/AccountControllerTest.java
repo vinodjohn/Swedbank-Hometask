@@ -37,7 +37,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(AccountController.class)
 @Import({AccountMapperImpl.class, AccountExceptionHandler.class, GlobalExceptionHandler.class})
 class AccountControllerTest {
-
     @Autowired
     private MockMvc mockMvc;
 
@@ -209,6 +208,7 @@ class AccountControllerTest {
                 .andExpect(jsonPath("$.success").value(false));
     }
 
+    // PRIVATE METHODS //
     private Account account(String owner) {
         Account account = new Account();
         account.setId(UUID.randomUUID());
