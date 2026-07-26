@@ -11,7 +11,7 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  */
 @ConfigurationProperties(prefix = "external.logging")
 public record ExternalLoggingProperties(
-        @DefaultValue("https://httpstat.us") String baseUrl,
+        @DefaultValue("https://mock.httpstatus.io") String baseUrl,
         @DefaultValue("200") int statusCode,
         @DefaultValue("3000") int timeoutMs) {
 }

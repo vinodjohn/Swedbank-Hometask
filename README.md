@@ -57,11 +57,12 @@ exchange.rates.SEK=11.35
 exchange.rates.GBP=0.85
 ```
 
-The logging call is just a GET to a URL you can configure (httpstat.us out of the box). You
-can change the status code it hands back to pretend the dependency is failing:
+The logging call is just a GET to a URL you can configure (mock.httpstatus.io out of the box,
+a reliable stand in for httpstat.us). You can change the status code it hands back to pretend
+the dependency is failing:
 
 ```properties
-external.logging.base-url=https://httpstat.us
+external.logging.base-url=https://mock.httpstatus.io
 external.logging.status-code=200
 external.logging.timeout-ms=3000
 ```

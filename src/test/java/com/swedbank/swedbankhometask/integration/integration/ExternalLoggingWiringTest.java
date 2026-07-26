@@ -22,7 +22,7 @@ class ExternalLoggingWiringTest {
     @Test
     @DisplayName("binds the external logging properties from configuration")
     void bindsExternalLoggingProperties() {
-        assertThat(externalLoggingProperties.baseUrl()).isEqualTo("https://httpstat.us");
+        assertThat(externalLoggingProperties.baseUrl()).isEqualTo("https://mock.httpstatus.io");
         assertThat(externalLoggingProperties.statusCode()).isEqualTo(200);
     }
 
